@@ -50,6 +50,11 @@ app/
                                   # (user <-> ticket flow), group (ticket
                                   # replies + ban button)
 migrations/                   # Alembic (async env.py)
+deploy/
+└── supportbot.service        # systemd unit file
+Dockerfile                    # container image for the bot
+docker-compose.yml            # bot + postgres for local/server deployment
+entrypoint.sh                 # runs migrations, then starts the bot
 ```
 
 ## Installation
@@ -93,6 +98,58 @@ alembic upgrade head
 
 ```bash
 python -m app.main
+```
+
+## Deployment
+
+### Docker Compose
+
+Builds the bot image and runs it alongside a Postgres 16 container.
+
+```bash
+cp .env.example .env
+# edit .env with your values
+docker compose up -d --build
+```
+
+The bot container's `entrypoint.sh` runs `alembic upgrade head` automatically
+before starting the bot, so migrations are applied on every deploy.
+`docker-compose.yml` overrides `DB__HOST`/`DB__PORT` to point at the bundled
+`db` service — the rest of the database settings (`DB__USER`, `DB__PASSWORD`,
+`DB__NAME`) are read from the same `.env` file and used to initialize the
+Postgres container too.
+
+### systemd
+
+For a bare-metal/VM deployment without Docker:
+
+```bash
+sudo mkdir -p /opt/supportbot
+sudo cp -r . /opt/supportbot
+cd /opt/supportbot
+
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
+cp .env.example .env
+# edit .env with your values
+
+sudo useradd --system --shell /usr/sbin/nologin supportbot
+sudo chown -R supportbot:supportbot /opt/supportbot
+
+sudo cp deploy/supportbot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now supportbot
+```
+
+The unit file runs `alembic upgrade head` before every start
+(`ExecStartPre`) and restarts the bot on failure. It assumes the app lives
+in `/opt/supportbot` and runs as the `supportbot` user — edit `User=`,
+`WorkingDirectory=` and the venv paths in `deploy/supportbot.service` if your
+setup differs.
+
+```bash
+journalctl -u supportbot -f   # view logs
 ```
 
 ## License
