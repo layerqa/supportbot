@@ -1,12 +1,18 @@
 import html
 
 from aiogram import Bot, Router
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyParameters,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.filters.chat_type import ChatTypeFilter
 from app.config import settings
 from app.i18n import resolve_locale, t
+from app.services.messages import find_group_message_id, record_relayed_message
 from app.services.tickets import create_ticket, get_open_ticket
 from app.services.users import get_or_create_user
 
@@ -63,8 +69,20 @@ async def relay_to_support(message: Message, bot: Bot, session: AsyncSession) ->
         )
         await message.answer(t(locale, "welcome", org=html.escape(settings.support_org_name)))
 
-    await message.copy_to(
+    reply_parameters = None
+    if message.reply_to_message is not None:
+        group_message_id = await find_group_message_id(
+            session, ticket.id, message.reply_to_message.message_id
+        )
+        if group_message_id is not None:
+            reply_parameters = ReplyParameters(
+                message_id=group_message_id, allow_sending_without_reply=True
+            )
+
+    copy = await message.copy_to(
         chat_id=settings.support_chat_id,
         message_thread_id=ticket.thread_id,
+        reply_parameters=reply_parameters,
     )
+    await record_relayed_message(session, ticket.id, message.message_id, copy.message_id)
     await session.commit()
