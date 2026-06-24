@@ -9,15 +9,15 @@ async def get_or_create_user(
     telegram_id: int,
     full_name: str,
     username: str | None,
-) -> User:
+) -> tuple[User, bool]:
     user = await get_user_by_telegram_id(session, telegram_id)
     if user is not None:
-        return user
+        return user, False
 
     user = User(telegram_id=telegram_id, full_name=full_name, username=username)
     session.add(user)
     await session.flush()
-    return user
+    return user, True
 
 
 async def get_user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User | None:

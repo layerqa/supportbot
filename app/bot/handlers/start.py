@@ -17,7 +17,7 @@ router.message.filter(ChatTypeFilter("private"))
 @router.message(CommandStart())
 async def cmd_start(message: Message, session: AsyncSession) -> None:
     tg_user = message.from_user
-    user = await get_or_create_user(
+    user, _ = await get_or_create_user(
         session,
         telegram_id=tg_user.id,
         full_name=tg_user.full_name,
@@ -31,7 +31,7 @@ async def cmd_start(message: Message, session: AsyncSession) -> None:
 @router.message(Command("help"))
 async def cmd_help(message: Message, session: AsyncSession) -> None:
     tg_user = message.from_user
-    user = await get_or_create_user(
+    user, _ = await get_or_create_user(
         session,
         telegram_id=tg_user.id,
         full_name=tg_user.full_name,
