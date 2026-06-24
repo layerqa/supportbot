@@ -1,0 +1,17 @@
+[Unit]
+Description=Supportbot Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=supportbot
+WorkingDirectory=/opt/supportbot
+EnvironmentFile=/opt/supportbot/.env
+ExecStartPre=/opt/supportbot/.venv/bin/alembic upgrade head
+ExecStart=/opt/supportbot/.venv/bin/python -m app.main
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
