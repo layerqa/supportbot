@@ -1,9 +1,10 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReplyParameters
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.filters.chat_type import ChatTypeFilter
 from app.config import settings
+from app.services.messages import find_user_message_id, record_relayed_message
 from app.services.tickets import get_ticket_by_thread
 from app.services.users import ban_user
 
@@ -21,7 +22,22 @@ async def relay_to_user(message: Message, session: AsyncSession) -> None:
     if ticket is None:
         return
 
-    await message.copy_to(chat_id=ticket.user.telegram_id)
+    reply_parameters = None
+    if message.reply_to_message is not None:
+        user_message_id = await find_user_message_id(
+            session, ticket.id, message.reply_to_message.message_id
+        )
+        if user_message_id is not None:
+            reply_parameters = ReplyParameters(
+                message_id=user_message_id, allow_sending_without_reply=True
+            )
+
+    copy = await message.copy_to(
+        chat_id=ticket.user.telegram_id,
+        reply_parameters=reply_parameters,
+    )
+    await record_relayed_message(session, ticket.id, copy.message_id, message.message_id)
+    await session.commit()
 
 
 @router.callback_query(F.data.startswith("ban:"))
