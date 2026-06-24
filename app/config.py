@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     bot_token: SecretStr
     admin_ids: list[int] = Field(default_factory=list)
     support_chat_id: int
+    support_org_name: str
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
 

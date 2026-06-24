@@ -20,5 +20,6 @@ class User(Base, TimestampMixin):
     username: Mapped[str | None] = mapped_column(String(64))
     full_name: Mapped[str] = mapped_column(String(128))
     is_banned: Mapped[bool] = mapped_column(default=False)
+    locale: Mapped[str | None] = mapped_column(String(8))
 
     tickets: Mapped[list["Ticket"]] = relationship(back_populates="user")
