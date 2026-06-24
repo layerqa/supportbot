@@ -41,7 +41,7 @@ def _ban_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
 @router.message()
 async def relay_to_support(message: Message, bot: Bot, session: AsyncSession) -> None:
     tg_user = message.from_user
-    user = await get_or_create_user(
+    user, is_new_user = await get_or_create_user(
         session,
         telegram_id=tg_user.id,
         full_name=tg_user.full_name,
@@ -52,6 +52,9 @@ async def relay_to_support(message: Message, bot: Bot, session: AsyncSession) ->
     if user.is_banned:
         await message.answer(t(locale, "banned"))
         return
+
+    if is_new_user:
+        await message.answer(t(locale, "welcome", org=html.escape(settings.support_org_name)))
 
     ticket = await get_open_ticket(session, user)
     if ticket is None:
@@ -67,7 +70,6 @@ async def relay_to_support(message: Message, bot: Bot, session: AsyncSession) ->
             text=_render_ticket_card(user.full_name, user.telegram_id, tg_user.language_code),
             reply_markup=_ban_keyboard(user.telegram_id),
         )
-        await message.answer(t(locale, "welcome", org=html.escape(settings.support_org_name)))
 
     reply_parameters = None
     if message.reply_to_message is not None:
