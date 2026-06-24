@@ -20,12 +20,22 @@ router = Router(name="support")
 router.message.filter(ChatTypeFilter("private"))
 
 
-def _render_ticket_card(full_name: str, telegram_id: int, language_code: str | None) -> str:
+def _render_ticket_card(
+    full_name: str,
+    username: str | None,
+    telegram_id: int,
+    language_code: str | None,
+    can_open_chat: bool,
+) -> str:
     name = html.escape(full_name)
+    username_text = f" (@{html.escape(username)})" if username else ""
     lang = html.escape(language_code) if language_code else "—"
+    open_chat = (
+        f' [<a href="tg://user?id={telegram_id}">open chat</a>]' if can_open_chat else ""
+    )
     return (
-        f"🧑 <code>{name}</code>\n\n"
-        f'🆔 <code>{telegram_id}</code> [<a href="tg://user?id={telegram_id}">open chat</a>]\n\n'
+        f"🧑 <code>{name}</code>{username_text}\n\n"
+        f"🆔 <code>{telegram_id}</code>{open_chat}\n\n"
         f"<b>🌐 language_code:</b> {lang}"
     )
 
@@ -64,10 +74,17 @@ async def relay_to_support(message: Message, bot: Bot, session: AsyncSession) ->
         )
         ticket = await create_ticket(session, user, thread_id=topic.message_thread_id)
 
+        chat_info = await bot.get_chat(user.telegram_id)
         await bot.send_message(
             chat_id=settings.support_chat_id,
             message_thread_id=ticket.thread_id,
-            text=_render_ticket_card(user.full_name, user.telegram_id, tg_user.language_code),
+            text=_render_ticket_card(
+                user.full_name,
+                tg_user.username,
+                user.telegram_id,
+                tg_user.language_code,
+                can_open_chat=not chat_info.has_private_forwards,
+            ),
             reply_markup=_ban_keyboard(user.telegram_id),
         )
 
